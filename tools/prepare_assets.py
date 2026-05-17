@@ -42,9 +42,9 @@ SOURCES = [
         "crop": (100, 170, 1090, 1410),
     },
     {
-        "name": "maquinas-geral",
-        "src": Path(r"C:/Users/gabri/Downloads/WhatsApp Image 2026-05-17 at 11.08.05.jpeg"),
-        "crop": (130, 160, 1160, 1350),
+        "name": "esteira",
+        "src": ROOT / "assets" / "source" / "treadmill-gym.jpg",
+        "crop": (0, 130, 2048, 1290),
     },
 ]
 

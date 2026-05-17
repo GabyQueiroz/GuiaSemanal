@@ -182,12 +182,12 @@ const DATA = {
     equip("polia-alta", "Polia alta", "assets/equipamentos/polia-alta.png", ["Puxada alta", "Triceps na polia", "Remada com cabo"], "Para puxada alta, sente de frente para a maquina e prenda as coxas sob o apoio.", ["Abra o peito e relaxe os ombros.", "Puxe os cotovelos para baixo.", "Leve a barra perto do alto do peito.", "Suba controlando."], "Placa 1-2 para puxada; placa 1 para triceps."),
     equip("abdutora-adutora", "Abdutora/adutora", "assets/equipamentos/abdutora-adutora.png", ["Abdutora", "Adutora"], "Sente com costas apoiadas e ajuste as almofadas nas laterais ou interno das pernas.", ["Use amplitude confortavel.", "Abra ou feche sem impulso.", "Segure curto no fim do movimento.", "Volte devagar."], "Placa 1-2."),
     equip("bike-spinning", "Bike spinning", "assets/equipamentos/bike-spinning.png", ["Aquecimento", "Cardio leve"], "Ajuste o banco na altura aproximada do quadril; joelho levemente dobrado no ponto mais baixo.", ["Comece com resistencia baixa.", "Use 5-8 min para aquecer.", "Use 25-35 min no cardio.", "Evite sprint por enquanto."], "Resistencia leve/moderada."),
-    equip("maquinas-geral", "Esteira e visao geral", "assets/equipamentos/maquinas-geral.png", ["Esteira", "Aquecimento", "Cardio"], "Comece devagar e aumente aos poucos. Postura alta e passadas confortaveis.", ["Aquecimento: 5-8 min.", "Cardio: 25-35 min caminhando rapido.", "Segure no apoio so se precisar.", "Inclinacao 0-3% no inicio."], "Ritmo em que voce consegue falar frases curtas.")
+    equip("esteira", "Esteira", "assets/equipamentos/esteira.png", ["Esteira", "Aquecimento", "Cardio"], "Comece devagar e aumente aos poucos. Postura alta e passadas confortaveis.", ["Aquecimento: 5-8 min.", "Cardio: 25-35 min caminhando rapido.", "Segure no apoio so se precisar.", "Inclinacao 0-3% no inicio."], "Ritmo em que voce consegue falar frases curtas.")
   ]
 };
 
 function ex(name, sets, reps, weight, tip, equipment) {
-  return { name, sets, reps, weight, tip, equipment };
+  return { name, sets, reps, weight, tip, equipment, demoUrl: demoUrlFor(name) };
 }
 
 function equip(id, title, image, tags, setup, steps, weight) {
@@ -195,8 +195,6 @@ function equip(id, title, image, tags, setup, steps, weight) {
 }
 
 const STORAGE_KEY = "guia-semanal-registros-v2";
-const OPENAI_KEY_STORAGE = "guia-semanal-openai-key";
-
 const state = {
   day: "todos",
   equipment: "todos",
@@ -211,7 +209,6 @@ function init() {
   renderFilters();
   renderAll();
   bindRecordActions();
-  hydrateAiSettings();
   $("#resetChecks").addEventListener("click", () => {
     if (!confirm("Limpar todos os registros salvos desta semana?")) return;
     state.records = blankRecords();
@@ -343,6 +340,7 @@ function exerciseTemplate(day, exercise, index) {
         <div class="exercise-meta">
           <span class="mini">${exercise.sets} series</span>
           <span class="mini">${exercise.reps}</span>
+          <a class="demo-link" href="${exercise.demoUrl}" target="_blank" rel="noopener noreferrer">Ver demonstracao</a>
         </div>
       </div>
       <div class="weight-box"><strong>Peso sugerido:</strong><br>${exercise.weight}</div>
@@ -481,13 +479,12 @@ function foodEntryTemplate(day, entry) {
         ${entry.photo ? `<img class="food-photo" src="${entry.photo}" alt="Foto do alimento">` : `<div class="photo-placeholder">Sem foto</div>`}
         <div class="food-ai-box">
           <div class="food-entry-actions">
-            <button class="secondary" data-ai-food="${day.id}:${entry.id}">Analisar com IA</button>
             <button class="secondary danger" data-delete-food="${day.id}:${entry.id}">Remover</button>
           </div>
-          <label>Analise / identificacao
-            <textarea data-food-field="aiAnalysis" data-day-id="${day.id}" data-entry-id="${entry.id}" rows="4" placeholder="A IA preenche aqui, ou voce pode escrever manualmente.">${escapeHtml(entry.aiAnalysis)}</textarea>
+          <label>Observacoes da foto
+            <textarea data-food-field="photoNotes" data-day-id="${day.id}" data-entry-id="${entry.id}" rows="3" placeholder="Ex: prato grande, comi metade, tinha molho, estava com fome...">${escapeHtml(entry.photoNotes)}</textarea>
           </label>
-          <span class="muted">A foto fica salva no JSON como base64 para analise depois.</span>
+          <span class="muted">A foto fica salva no JSON como base64 para eu analisar depois.</span>
         </div>
       </div>
     </div>
@@ -550,12 +547,6 @@ function bindRecordActions() {
       return;
     }
 
-    const aiTarget = event.target.dataset.aiFood;
-    if (aiTarget) {
-      const [dayId, entryId] = aiTarget.split(":");
-      await analyzeFoodEntry(dayId, entryId, event.target);
-      return;
-    }
   });
 
   document.addEventListener("change", async (event) => {
@@ -572,7 +563,6 @@ function bindRecordActions() {
 
   $("#exportJson").addEventListener("click", exportRecords);
   $("#importJson").addEventListener("change", importRecords);
-  $("#saveOpenAiKey").addEventListener("click", saveOpenAiKey);
 }
 
 function syncTrainingCheckbox(exerciseId, checked) {
@@ -624,7 +614,7 @@ function newFoodEntry(overrides = {}) {
     photo: overrides.photo || "",
     photoName: overrides.photoName || "",
     photoType: overrides.photoType || "",
-    aiAnalysis: overrides.aiAnalysis || "",
+    photoNotes: overrides.photoNotes || "",
     ...overrides
   };
 }
@@ -710,7 +700,8 @@ async function exportRecords() {
           name: exercise.name,
           plannedSets: exercise.sets,
           plannedReps: exercise.reps,
-          suggestedWeight: exercise.weight
+          suggestedWeight: exercise.weight,
+          demoUrl: exercise.demoUrl
         }))
       }))
     },
@@ -758,93 +749,6 @@ async function importRecords(event) {
   }
 }
 
-function hydrateAiSettings() {
-  const key = localStorage.getItem(OPENAI_KEY_STORAGE) || "";
-  $("#openAiKey").value = key;
-  updateAiKeyStatus();
-}
-
-function saveOpenAiKey() {
-  const key = $("#openAiKey").value.trim();
-  if (key) {
-    localStorage.setItem(OPENAI_KEY_STORAGE, key);
-  } else {
-    localStorage.removeItem(OPENAI_KEY_STORAGE);
-  }
-  updateAiKeyStatus();
-}
-
-function updateAiKeyStatus() {
-  const hasKey = Boolean(localStorage.getItem(OPENAI_KEY_STORAGE));
-  $("#aiKeyStatus").textContent = hasKey ? "Chave salva neste navegador." : "Sem chave: salve fotos e exporte o JSON para analise depois.";
-}
-
-async function analyzeFoodEntry(dayId, entryId, button) {
-  const key = localStorage.getItem(OPENAI_KEY_STORAGE);
-  const entry = ensureFoodEntry(dayId, entryId);
-  if (!entry.photo) {
-    alert("Adicione uma foto antes de analisar com IA.");
-    return;
-  }
-  if (!key) {
-    alert("Para analisar automaticamente, salve uma chave OpenAI neste navegador. Sem chave, a foto ainda fica no JSON para eu analisar depois.");
-    return;
-  }
-
-  const originalText = button.textContent;
-  button.textContent = "Analisando...";
-  button.disabled = true;
-  try {
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${key}`
-      },
-      body: JSON.stringify({
-        model: "gpt-5-mini",
-        input: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "input_text",
-                text: "Analise esta foto de comida para um diario alimentar pessoal. Responda em portugues, curto e pratico, com: 1) o que parece ter no prato, 2) se parece uma escolha boa/ok/ruim para ganhar massa magra com saude, 3) uma sugestao simples de melhoria. Nao estime calorias exatas."
-              },
-              {
-                type: "input_image",
-                image_url: entry.photo
-              }
-            ]
-          }
-        ]
-      })
-    });
-    if (!response.ok) {
-      const details = await response.text();
-      throw new Error(details || `Erro ${response.status}`);
-    }
-    const data = await response.json();
-    entry.aiAnalysis = extractResponseText(data) || "Analise concluida, mas nao consegui ler o texto retornado.";
-    saveRecords();
-    renderMealNotes();
-  } catch (error) {
-    alert(`Nao consegui analisar agora: ${error.message}`);
-  } finally {
-    button.disabled = false;
-    button.textContent = originalText;
-  }
-}
-
-function extractResponseText(data) {
-  if (data.output_text) return data.output_text;
-  return (data.output || [])
-    .flatMap((item) => item.content || [])
-    .map((content) => content.text || "")
-    .filter(Boolean)
-    .join("\n");
-}
-
 function imageFileToDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -883,6 +787,36 @@ function shortEquipmentLabel(title) {
     .replace("Abdutora/adutora", "Abdutora")
     .replace("Bike spinning", "Bike")
     .replace("Esteira e visao geral", "Esteira");
+}
+
+function demoUrlFor(name) {
+  const demos = [
+    ["Cadeira flexora", "https://musclewiki.com/exercise/machine-seated-leg-curl"],
+    ["Chest press", "https://www.mayoclinic.org/healthy-lifestyle/fitness/multimedia/chest-press/vid-20084687"],
+    ["Puxada alta", "https://www.youtube.com/results?search_query=puxada+alta+na+polia+execucao+correta"],
+    ["Triceps na polia", "https://www.youtube.com/results?search_query=triceps+na+polia+execucao+correta"],
+    ["Cadeira extensora", "https://www.youtube.com/results?search_query=cadeira+extensora+execucao+correta"],
+    ["Abdutora", "https://www.youtube.com/results?search_query=cadeira+abdutora+adutora+execucao+correta"],
+    ["Afundo", "https://www.youtube.com/results?search_query=afundo+parado+com+halteres+execucao+correta"],
+    ["Stiff", "https://www.youtube.com/results?search_query=stiff+com+halteres+execucao+correta"],
+    ["Elevacao pelvica", "https://www.youtube.com/results?search_query=elevacao+pelvica+no+banco+execucao+correta"],
+    ["Prancha lateral", "https://www.youtube.com/results?search_query=prancha+lateral+execucao+correta"],
+    ["Prancha", "https://www.youtube.com/results?search_query=prancha+abdominal+execucao+correta"],
+    ["Dead bug", "https://www.youtube.com/results?search_query=dead+bug+exercicio+execucao+correta"],
+    ["Supino", "https://www.youtube.com/results?search_query=supino+com+halteres+execucao+correta"],
+    ["Remada", "https://www.youtube.com/results?search_query=remada+unilateral+halter+execucao+correta"],
+    ["Desenvolvimento", "https://www.youtube.com/results?search_query=desenvolvimento+com+halteres+execucao+correta"],
+    ["Rosca", "https://www.youtube.com/results?search_query=rosca+biceps+halteres+execucao+correta"],
+    ["Crucifixo inverso", "https://www.youtube.com/results?search_query=crucifixo+inverso+halteres+execucao+correta"],
+    ["Elevacao lateral", "https://www.youtube.com/results?search_query=elevacao+lateral+halteres+execucao+correta"],
+    ["Panturrilha", "https://www.youtube.com/results?search_query=panturrilha+em+pe+execucao+correta"],
+    ["Esteira", "https://www.youtube.com/results?search_query=como+usar+esteira+academia+iniciante"],
+    ["bike", "https://www.youtube.com/results?search_query=como+usar+bike+spinning+iniciante"],
+    ["Mobilidade", "https://www.youtube.com/results?search_query=mobilidade+quadril+posterior+peitoral+iniciante"]
+  ];
+  const found = demos.find(([needle]) => name.toLowerCase().includes(needle.toLowerCase()));
+  if (found) return found[1];
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(`${name} execucao correta`)}`;
 }
 
 init();

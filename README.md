@@ -9,8 +9,12 @@ Site pessoal estático para acompanhar treino, cardápio e guia dos aparelhos da
 - Marque os exercícios feitos; o progresso fica salvo no navegador.
 - Registre carga, séries, repetições, esforço, bioimpedância e alimentação feita.
 - Na alimentação, adicione vários registros por dia, com foto opcional.
-- A análise por IA é opcional: salve uma chave OpenAI no navegador e clique em `Analisar com IA`.
 - Use `Exportar JSON` no fim da semana para salvar um arquivo que pode ser usado na próxima atualização.
+- Cada exercício tem um botão `Ver demonstração` com link externo.
+
+## Fontes de mídia
+
+- Foto da esteira: CC0 licensed photo by Topher from the WordPress Photo Directory: https://wordpress.org/photos/photo/274649227f/
 - Para atualizar a próxima semana, edite os dados no começo de `app.js`.
 
 ## Publicar no GitHub Pages

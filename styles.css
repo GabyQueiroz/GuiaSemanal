@@ -345,6 +345,19 @@ main {
   font-size: 12px;
 }
 
+.demo-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  color: var(--accent);
+  background: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
 .weight-box {
   padding: 10px;
   border-left: 3px solid var(--accent-2);
@@ -491,18 +504,6 @@ textarea:focus {
   border-top: 1px solid var(--line);
 }
 
-.ai-settings {
-  display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto minmax(180px, auto);
-  gap: 10px;
-  align-items: end;
-  margin-bottom: 16px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fbfdfb;
-}
-
 .muted {
   color: var(--muted);
   font-size: 13px;
@@ -635,7 +636,6 @@ code {
   .exercise,
   .tracker-layout,
   .log-row,
-  .ai-settings,
   .food-entry-grid,
   .food-photo-row {
     grid-template-columns: 1fr;
