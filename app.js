@@ -182,7 +182,7 @@ const DATA = {
     equip("polia-alta", "Polia alta", "assets/equipamentos/polia-alta.png", ["Puxada alta", "Triceps na polia", "Remada com cabo"], "Para puxada alta, sente de frente para a maquina e prenda as coxas sob o apoio.", ["Abra o peito e relaxe os ombros.", "Puxe os cotovelos para baixo.", "Leve a barra perto do alto do peito.", "Suba controlando."], "Placa 1-2 para puxada; placa 1 para triceps."),
     equip("abdutora-adutora", "Abdutora/adutora", "assets/equipamentos/abdutora-adutora.png", ["Abdutora", "Adutora"], "Sente com costas apoiadas e ajuste as almofadas nas laterais ou interno das pernas.", ["Use amplitude confortavel.", "Abra ou feche sem impulso.", "Segure curto no fim do movimento.", "Volte devagar."], "Placa 1-2."),
     equip("bike-spinning", "Bike spinning", "assets/equipamentos/bike-spinning.png", ["Aquecimento", "Cardio leve"], "Ajuste o banco na altura aproximada do quadril; joelho levemente dobrado no ponto mais baixo.", ["Comece com resistencia baixa.", "Use 5-8 min para aquecer.", "Use 25-35 min no cardio.", "Evite sprint por enquanto."], "Resistencia leve/moderada."),
-    equip("maquinas-geral", "Esteira e visão geral", "assets/equipamentos/maquinas-geral.png", ["Esteira", "Aquecimento", "Cardio"], "Comece devagar e aumente aos poucos. Postura alta e passadas confortaveis.", ["Aquecimento: 5-8 min.", "Cardio: 25-35 min caminhando rapido.", "Segure no apoio so se precisar.", "Inclinacao 0-3% no inicio."], "Ritmo em que voce consegue falar frases curtas.")
+    equip("maquinas-geral", "Esteira e visao geral", "assets/equipamentos/maquinas-geral.png", ["Esteira", "Aquecimento", "Cardio"], "Comece devagar e aumente aos poucos. Postura alta e passadas confortaveis.", ["Aquecimento: 5-8 min.", "Cardio: 25-35 min caminhando rapido.", "Segure no apoio so se precisar.", "Inclinacao 0-3% no inicio."], "Ritmo em que voce consegue falar frases curtas.")
   ]
 };
 
@@ -194,10 +194,12 @@ function equip(id, title, image, tags, setup, steps, weight) {
   return { id, title, image, tags, setup, steps, weight };
 }
 
+const STORAGE_KEY = "guia-semanal-registros-v2";
+
 const state = {
   day: "todos",
   equipment: "todos",
-  checks: JSON.parse(localStorage.getItem("gaby-checks") || "{}")
+  records: loadRecords()
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -207,9 +209,11 @@ function init() {
   bindTabs();
   renderFilters();
   renderAll();
+  bindRecordActions();
   $("#resetChecks").addEventListener("click", () => {
-    state.checks = {};
-    saveChecks();
+    if (!confirm("Limpar todos os registros salvos desta semana?")) return;
+    state.records = blankRecords();
+    saveRecords();
     renderAll();
   });
 }
@@ -227,7 +231,8 @@ function bindTabs() {
 
 function renderFilters() {
   const dayButtons = [{ id: "todos", label: "Todos" }, ...DATA.days.map(({ id, label }) => ({ id, label }))];
-  ["weekFilter", "trainingFilter", "mealFilter"].forEach((target) => {
+  ["weekFilter", "trainingFilter", "mealFilter", "logFilter"].forEach((target) => {
+    if (!$(`#${target}`)) return;
     $(`#${target}`).innerHTML = dayButtons.map(dayChip).join("");
     $(`#${target}`).addEventListener("click", onDayFilter);
   });
@@ -267,6 +272,9 @@ function renderAll() {
   renderTraining();
   renderMeals();
   renderEquipment();
+  renderBio();
+  renderExerciseLog();
+  renderMealNotes();
   renderProgress();
   refreshChips();
 }
@@ -280,7 +288,7 @@ function renderWeek() {
   $("#weekGrid").innerHTML = selectedDays().map((day) => `
     <article class="week-card">
       <header>
-        <span class="date">${day.date} · ${day.label}</span>
+        <span class="date">${day.date} - ${day.label}</span>
         <span class="tag">${day.duration}</span>
       </header>
       <h3>${day.title}</h3>
@@ -300,7 +308,7 @@ function renderTraining() {
       <article class="training-day">
         <header>
           <div>
-            <span class="date">${day.date} · ${day.label}</span>
+            <span class="date">${day.date} - ${day.label}</span>
             <h3>${day.title}</h3>
           </div>
           <span class="tag">${day.duration}</span>
@@ -312,18 +320,21 @@ function renderTraining() {
 
   $$(".exercise-check").forEach((input) => {
     input.addEventListener("change", () => {
-      state.checks[input.id] = input.checked;
-      saveChecks();
+      const record = ensureExerciseRecord(input.dataset.day, input.dataset.exercise);
+      record.done = input.checked;
+      saveRecords();
       renderProgress();
+      renderExerciseLog();
     });
   });
 }
 
 function exerciseTemplate(day, exercise, index) {
   const id = `${day.id}-${index}-${slug(exercise.name)}`;
+  const record = ensureExerciseRecord(day.id, id);
   return `
     <div class="exercise">
-      <input class="exercise-check" id="${id}" type="checkbox" ${state.checks[id] ? "checked" : ""} aria-label="Marcar ${exercise.name}">
+      <input class="exercise-check" id="${id}" data-day="${day.id}" data-exercise="${id}" type="checkbox" ${record.done ? "checked" : ""} aria-label="Marcar ${exercise.name}">
       <div>
         <h4>${exercise.name}</h4>
         <p>${exercise.tip}</p>
@@ -340,7 +351,7 @@ function exerciseTemplate(day, exercise, index) {
 function renderMeals() {
   $("#mealGrid").innerHTML = selectedDays().map((day) => `
     <article class="meal-card">
-      <span class="date">${day.date} · ${day.label}</span>
+      <span class="date">${day.date} - ${day.label}</span>
       <h3>${day.title}</h3>
       ${mealBlock("Cafe da manha", day.meals.cafe)}
       ${mealBlock("Lanche", day.meals.lanche1)}
@@ -376,8 +387,8 @@ function renderEquipment() {
 }
 
 function renderProgress() {
-  const ids = DATA.days.flatMap((day) => day.exercises.map((exercise, index) => `${day.id}-${index}-${slug(exercise.name)}`));
-  const done = ids.filter((id) => state.checks[id]).length;
+  const ids = DATA.days.flatMap((day) => day.exercises.map((exercise, index) => ({ dayId: day.id, id: `${day.id}-${index}-${slug(exercise.name)}` })));
+  const done = ids.filter(({ dayId, id }) => ensureExerciseRecord(dayId, id).done).length;
   const total = ids.length || 1;
   const pct = Math.round((done / total) * 100);
   $("#progressText").textContent = `${pct}%`;
@@ -385,14 +396,236 @@ function renderProgress() {
 
   const summary = DATA.days.map((day) => {
     const dayIds = day.exercises.map((exercise, index) => `${day.id}-${index}-${slug(exercise.name)}`);
-    const dayDone = dayIds.filter((id) => state.checks[id]).length;
+    const dayDone = dayIds.filter((id) => ensureExerciseRecord(day.id, id).done).length;
     return `<div class="summary-row"><span>${day.label}</span><strong>${dayDone}/${dayIds.length}</strong></div>`;
   }).join("");
   $("#checkSummary").innerHTML = summary;
 }
 
-function saveChecks() {
-  localStorage.setItem("gaby-checks", JSON.stringify(state.checks));
+function renderBio() {
+  $$("[data-bio]").forEach((input) => {
+    const key = input.dataset.bio;
+    input.value = state.records.bio[key] || "";
+  });
+}
+
+function renderExerciseLog() {
+  const target = $("#exerciseLog");
+  if (!target) return;
+  target.innerHTML = selectedDays().map((day) => {
+    if (!day.exercises.length) {
+      return `<div class="log-day"><h4>${day.date} - ${day.label}</h4><p>Descanso. Use o campo de alimentacao para anotar como foi o dia.</p></div>`;
+    }
+    const rows = day.exercises.map((exercise, index) => {
+      const exerciseId = `${day.id}-${index}-${slug(exercise.name)}`;
+      const record = ensureExerciseRecord(day.id, exerciseId);
+      return `
+        <div class="log-row">
+          <label class="check-cell">
+            <input type="checkbox" data-log="done" data-day-id="${day.id}" data-exercise-id="${exerciseId}" ${record.done ? "checked" : ""}>
+            <span>${escapeHtml(exercise.name)}</span>
+          </label>
+          <label>Carga feita<input data-log="actualWeight" data-day-id="${day.id}" data-exercise-id="${exerciseId}" value="${escapeAttr(record.actualWeight)}" placeholder="${escapeAttr(exercise.weight)}"></label>
+          <label>Series<input data-log="actualSets" data-day-id="${day.id}" data-exercise-id="${exerciseId}" value="${escapeAttr(record.actualSets)}" placeholder="${escapeAttr(exercise.sets)}"></label>
+          <label>Reps/tempo<input data-log="actualReps" data-day-id="${day.id}" data-exercise-id="${exerciseId}" value="${escapeAttr(record.actualReps)}" placeholder="${escapeAttr(exercise.reps)}"></label>
+          <label>Esforco<input data-log="effort" data-day-id="${day.id}" data-exercise-id="${exerciseId}" value="${escapeAttr(record.effort)}" placeholder="1-10"></label>
+          <label class="notes-cell">Notas<textarea data-log="notes" data-day-id="${day.id}" data-exercise-id="${exerciseId}" rows="2" placeholder="Dor, ajuste, facilidade...">${escapeHtml(record.notes)}</textarea></label>
+        </div>
+      `;
+    }).join("");
+    return `<div class="log-day"><h4>${day.date} - ${day.label}: ${day.title}</h4>${rows}</div>`;
+  }).join("");
+}
+
+function renderMealNotes() {
+  const target = $("#mealNotes");
+  if (!target) return;
+  target.innerHTML = selectedDays().map((day) => {
+    const meal = ensureMealRecord(day.id);
+    return `
+      <div class="meal-note">
+        <h4>${day.date} - ${day.label}</h4>
+        <p><strong>Plano:</strong> ${escapeHtml(day.meals.cafe)} | ${escapeHtml(day.meals.almoco)} | ${escapeHtml(day.meals.jantar)}</p>
+        <label>O que eu comi de verdade<textarea data-meal="actual" data-day-id="${day.id}" rows="4" placeholder="Cafe, almoco, jantar, beliscos, agua...">${escapeHtml(meal.actual)}</textarea></label>
+        <label>Como me senti<textarea data-meal="notes" data-day-id="${day.id}" rows="2" placeholder="Fome, energia, inchaco, sono...">${escapeHtml(meal.notes)}</textarea></label>
+      </div>
+    `;
+  }).join("");
+}
+
+function bindRecordActions() {
+  const onRecordChange = (event) => {
+    const bioField = event.target.dataset.bio;
+    if (bioField) {
+      state.records.bio[bioField] = event.target.value;
+      saveRecords();
+      return;
+    }
+
+    const logField = event.target.dataset.log;
+    if (logField) {
+      const record = ensureExerciseRecord(event.target.dataset.dayId, event.target.dataset.exerciseId);
+      record[logField] = event.target.type === "checkbox" ? event.target.checked : event.target.value;
+      saveRecords();
+      if (logField === "done") {
+        syncTrainingCheckbox(event.target.dataset.exerciseId, event.target.checked);
+        renderProgress();
+      }
+      return;
+    }
+
+    const mealField = event.target.dataset.meal;
+    if (mealField) {
+      const meal = ensureMealRecord(event.target.dataset.dayId);
+      meal[mealField] = event.target.value;
+      saveRecords();
+    }
+  };
+
+  document.addEventListener("input", onRecordChange);
+  document.addEventListener("change", onRecordChange);
+
+  $("#exportJson").addEventListener("click", exportRecords);
+  $("#importJson").addEventListener("change", importRecords);
+}
+
+function syncTrainingCheckbox(exerciseId, checked) {
+  const input = document.getElementById(exerciseId);
+  if (input) input.checked = checked;
+}
+
+function ensureExerciseRecord(dayId, exerciseId) {
+  if (!state.records.exercises[dayId]) state.records.exercises[dayId] = {};
+  if (!state.records.exercises[dayId][exerciseId]) {
+    state.records.exercises[dayId][exerciseId] = {
+      done: false,
+      actualWeight: "",
+      actualSets: "",
+      actualReps: "",
+      effort: "",
+      notes: ""
+    };
+  }
+  return state.records.exercises[dayId][exerciseId];
+}
+
+function ensureMealRecord(dayId) {
+  if (!state.records.meals[dayId]) state.records.meals[dayId] = { actual: "", notes: "" };
+  return state.records.meals[dayId];
+}
+
+function blankRecords() {
+  return {
+    version: 2,
+    week: DATA.week,
+    updatedAt: new Date().toISOString(),
+    bio: { date: "", weight: "", fat: "", muscle: "", water: "", bmr: "", notes: "" },
+    exercises: {},
+    meals: {}
+  };
+}
+
+function loadRecords() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+    return normalizeRecords(saved);
+  } catch {
+    return blankRecords();
+  }
+}
+
+function normalizeRecords(records) {
+  const base = blankRecords();
+  if (!records || typeof records !== "object") return base;
+  return {
+    ...base,
+    ...records,
+    bio: { ...base.bio, ...(records.bio || {}) },
+    exercises: records.exercises || {},
+    meals: records.meals || {}
+  };
+}
+
+function saveRecords() {
+  state.records.updatedAt = new Date().toISOString();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.records));
+}
+
+async function exportRecords() {
+  saveRecords();
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    plan: {
+      title: "Guia Semanal",
+      week: DATA.week,
+      days: DATA.days.map((day) => ({
+        id: day.id,
+        label: day.label,
+        date: day.date,
+        title: day.title,
+        exercises: day.exercises.map((exercise, index) => ({
+          id: `${day.id}-${index}-${slug(exercise.name)}`,
+          name: exercise.name,
+          plannedSets: exercise.sets,
+          plannedReps: exercise.reps,
+          suggestedWeight: exercise.weight
+        }))
+      }))
+    },
+    records: state.records
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const filename = `registro-guia-semanal-${DATA.week.replace(/\s+/g, "-").replace(/\//g, "-")}.json`;
+
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: filename,
+        types: [{ description: "JSON", accept: { "application/json": [".json"] } }]
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return;
+    } catch (error) {
+      if (error.name === "AbortError") return;
+    }
+  }
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+async function importRecords(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    state.records = normalizeRecords(parsed.records || parsed);
+    saveRecords();
+    renderAll();
+  } catch {
+    alert("Nao consegui importar esse JSON. Confira se e o arquivo exportado pelo site.");
+  } finally {
+    event.target.value = "";
+  }
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function escapeAttr(value) {
+  return escapeHtml(value).replace(/'/g, "&#39;");
 }
 
 function slug(text) {
@@ -411,7 +644,7 @@ function shortEquipmentLabel(title) {
     .replace("Cadeira extensora", "Extensora")
     .replace("Abdutora/adutora", "Abdutora")
     .replace("Bike spinning", "Bike")
-    .replace("Esteira e visão geral", "Esteira");
+    .replace("Esteira e visao geral", "Esteira");
 }
 
 init();

@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Guia Semanal da Gaby</title>
+    <title>Guia Semanal</title>
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
@@ -11,7 +11,7 @@
       <div class="header-inner">
         <div>
           <p class="eyebrow">18 a 24 de maio de 2026</p>
-          <h1>Guia Semanal da Gaby</h1>
+          <h1>Guia Semanal</h1>
           <p class="subtitle">Treino, cardapio, aparelhos e registro simples para acompanhar a semana.</p>
         </div>
         <div class="status-card">
@@ -86,9 +86,26 @@
             <p class="eyebrow">Para atualizar toda semana</p>
             <h2>Registro e ajustes</h2>
           </div>
-          <button class="secondary" id="resetChecks">Limpar marcacoes</button>
+          <div class="action-row">
+            <button class="secondary" id="exportJson">Exportar JSON</button>
+            <label class="secondary file-button" for="importJson">Importar JSON</label>
+            <input id="importJson" type="file" accept="application/json,.json">
+            <button class="secondary danger" id="resetChecks">Limpar registros</button>
+          </div>
         </div>
         <div class="tracker-layout">
+          <article class="panel wide">
+            <h3>Bioimpedancia semanal</h3>
+            <div class="bio-grid">
+              <label>Data<input data-bio="date" type="date"></label>
+              <label>Peso (kg)<input data-bio="weight" inputmode="decimal" placeholder="42,0"></label>
+              <label>Gordura (%)<input data-bio="fat" inputmode="decimal" placeholder="ex: 24"></label>
+              <label>Massa muscular (kg)<input data-bio="muscle" inputmode="decimal" placeholder="ex: 31"></label>
+              <label>Agua (%)<input data-bio="water" inputmode="decimal" placeholder="opcional"></label>
+              <label>Metabolismo basal<input data-bio="bmr" inputmode="numeric" placeholder="opcional"></label>
+            </div>
+            <label class="full-label">Observacoes da bioimpedancia<textarea data-bio="notes" rows="3" placeholder="Sono, ciclo, retencao, horario da pesagem..."></textarea></label>
+          </article>
           <article class="panel">
             <h3>Regra de progressao</h3>
             <p>Quando conseguir fazer todas as series e repeticoes com tecnica boa, suba pouco: 1 placa na maquina ou 1-2 kg no total dos halteres.</p>
@@ -99,8 +116,22 @@
             <div id="checkSummary"></div>
           </article>
           <article class="panel wide">
+            <div class="section-title compact">
+              <div>
+                <h3>Registro do treino feito</h3>
+                <p>Anote a carga, series e repeticoes reais. Esses dados ficam salvos no navegador e podem ser exportados em JSON.</p>
+              </div>
+              <div class="day-filter" id="logFilter"></div>
+            </div>
+            <div id="exerciseLog"></div>
+          </article>
+          <article class="panel wide">
+            <h3>Alimentacao feita</h3>
+            <div id="mealNotes"></div>
+          </article>
+          <article class="panel wide">
             <h3>Como atualizar</h3>
-            <p>Para a proxima semana, edite os dados no arquivo <code>app.js</code>: datas, treinos e cardapio. O layout e os filtros continuam iguais.</p>
+            <p>Para a proxima semana, exporte o JSON no fim da semana. Depois eu consigo usar esse arquivo para ajustar seu novo plano com base no que voce realmente fez.</p>
           </article>
         </div>
       </section>

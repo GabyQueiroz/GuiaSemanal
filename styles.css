@@ -24,8 +24,13 @@ body {
 }
 
 button,
-input {
+input,
+textarea {
   font: inherit;
+}
+
+textarea {
+  resize: vertical;
 }
 
 .app-header {
@@ -163,6 +168,19 @@ main {
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 18px;
+}
+
+.section-title.compact {
+  align-items: start;
+  margin-bottom: 12px;
+}
+
+.section-title.compact h3 {
+  margin-bottom: 4px;
+}
+
+.section-title.compact p {
+  margin-bottom: 0;
 }
 
 .section-title > div:first-child {
@@ -408,6 +426,111 @@ main {
   padding: 9px 14px;
 }
 
+.danger {
+  border-color: #ead4ce;
+  color: #873b27;
+}
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.file-button {
+  display: inline-flex;
+  align-items: center;
+}
+
+#importJson {
+  display: none;
+}
+
+.bio-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+input,
+textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--ink);
+  padding: 9px 10px;
+  font-weight: 400;
+}
+
+input:focus,
+textarea:focus {
+  outline: 2px solid rgba(23, 100, 98, 0.22);
+  border-color: var(--accent);
+}
+
+.full-label {
+  margin-top: 12px;
+}
+
+.log-day,
+.meal-note {
+  display: grid;
+  gap: 10px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+
+.log-day:first-child,
+.meal-note:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.log-day h4,
+.meal-note h4 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.log-row {
+  display: grid;
+  grid-template-columns: minmax(190px, 1.2fr) repeat(4, minmax(90px, 0.65fr)) minmax(180px, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdfb;
+}
+
+.check-cell {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.check-cell input {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+.notes-cell textarea {
+  min-height: 40px;
+}
+
 code {
   padding: 2px 5px;
   border-radius: 5px;
@@ -418,7 +541,8 @@ code {
   .header-inner,
   .section-title,
   .exercise,
-  .tracker-layout {
+  .tracker-layout,
+  .log-row {
     grid-template-columns: 1fr;
     display: grid;
   }
@@ -439,5 +563,10 @@ code {
 
   .weight-box {
     grid-column: 2;
+  }
+
+  .log-row .check-cell,
+  .weight-box {
+    grid-column: auto;
   }
 }
