@@ -377,9 +377,10 @@ main {
 .equipment-card img {
   display: block;
   width: 100%;
-  aspect-ratio: 1.25 / 1;
-  object-fit: cover;
-  background: #edf3ef;
+  height: 210px;
+  object-fit: contain;
+  padding: 8px;
+  background: #f6faf7;
 }
 
 .equipment-content {
@@ -490,6 +491,97 @@ textarea:focus {
   border-top: 1px solid var(--line);
 }
 
+.ai-settings {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto minmax(180px, auto);
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdfb;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--ink);
+  padding: 9px 10px;
+}
+
+.food-entry-list {
+  display: grid;
+  gap: 12px;
+}
+
+.food-entry {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdfb;
+}
+
+.food-entry-grid {
+  display: grid;
+  grid-template-columns: 110px 140px minmax(220px, 1fr) minmax(170px, 0.6fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.food-description {
+  min-width: 0;
+}
+
+.food-photo-row {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.food-photo,
+.photo-placeholder {
+  width: 160px;
+  height: 130px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #eef4f0;
+}
+
+.food-photo {
+  object-fit: cover;
+}
+
+.photo-placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.food-ai-box {
+  display: grid;
+  gap: 8px;
+}
+
+.food-entry-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
 .log-day:first-child,
 .meal-note:first-child {
   border-top: 0;
@@ -542,7 +634,10 @@ code {
   .section-title,
   .exercise,
   .tracker-layout,
-  .log-row {
+  .log-row,
+  .ai-settings,
+  .food-entry-grid,
+  .food-photo-row {
     grid-template-columns: 1fr;
     display: grid;
   }
@@ -568,5 +663,15 @@ code {
   .log-row .check-cell,
   .weight-box {
     grid-column: auto;
+  }
+
+  .equipment-card img {
+    height: 180px;
+  }
+
+  .food-photo,
+  .photo-placeholder {
+    width: 100%;
+    height: 190px;
   }
 }

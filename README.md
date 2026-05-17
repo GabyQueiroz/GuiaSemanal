@@ -8,6 +8,8 @@ Site pessoal estático para acompanhar treino, cardápio e guia dos aparelhos da
 - Use os filtros por dia para ver treino e cardápio.
 - Marque os exercícios feitos; o progresso fica salvo no navegador.
 - Registre carga, séries, repetições, esforço, bioimpedância e alimentação feita.
+- Na alimentação, adicione vários registros por dia, com foto opcional.
+- A análise por IA é opcional: salve uma chave OpenAI no navegador e clique em `Analisar com IA`.
 - Use `Exportar JSON` no fim da semana para salvar um arquivo que pode ser usado na próxima atualização.
 - Para atualizar a próxima semana, edite os dados no começo de `app.js`.
 

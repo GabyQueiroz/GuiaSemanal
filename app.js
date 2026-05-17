@@ -195,6 +195,7 @@ function equip(id, title, image, tags, setup, steps, weight) {
 }
 
 const STORAGE_KEY = "guia-semanal-registros-v2";
+const OPENAI_KEY_STORAGE = "guia-semanal-openai-key";
 
 const state = {
   day: "todos",
@@ -210,6 +211,7 @@ function init() {
   renderFilters();
   renderAll();
   bindRecordActions();
+  hydrateAiSettings();
   $("#resetChecks").addEventListener("click", () => {
     if (!confirm("Limpar todos os registros salvos desta semana?")) return;
     state.records = blankRecords();
@@ -442,15 +444,54 @@ function renderMealNotes() {
   if (!target) return;
   target.innerHTML = selectedDays().map((day) => {
     const meal = ensureMealRecord(day.id);
+    const entries = meal.entries.map((entry) => foodEntryTemplate(day, entry)).join("");
     return `
       <div class="meal-note">
         <h4>${day.date} - ${day.label}</h4>
         <p><strong>Plano:</strong> ${escapeHtml(day.meals.cafe)} | ${escapeHtml(day.meals.almoco)} | ${escapeHtml(day.meals.jantar)}</p>
-        <label>O que eu comi de verdade<textarea data-meal="actual" data-day-id="${day.id}" rows="4" placeholder="Cafe, almoco, jantar, beliscos, agua...">${escapeHtml(meal.actual)}</textarea></label>
-        <label>Como me senti<textarea data-meal="notes" data-day-id="${day.id}" rows="2" placeholder="Fome, energia, inchaco, sono...">${escapeHtml(meal.notes)}</textarea></label>
+        <div class="food-entry-list">${entries || `<p class="muted">Nenhum registro ainda.</p>`}</div>
+        <div class="food-entry-actions">
+          <button class="secondary" data-add-food="${day.id}">Adicionar registro</button>
+          <span class="muted">Use para cafe, almoco, belisco, agua, jantar ou qualquer foto rapida.</span>
+        </div>
+        <label>Resumo do dia / como me senti<textarea data-meal-day="notes" data-day-id="${day.id}" rows="2" placeholder="Fome, energia, inchaco, sono...">${escapeHtml(meal.notes)}</textarea></label>
       </div>
     `;
   }).join("");
+}
+
+function foodEntryTemplate(day, entry) {
+  return `
+    <div class="food-entry" data-entry-id="${entry.id}">
+      <div class="food-entry-grid">
+        <label>Horario<input data-food-field="time" data-day-id="${day.id}" data-entry-id="${entry.id}" type="time" value="${escapeAttr(entry.time)}"></label>
+        <label>Tipo
+          <select data-food-field="type" data-day-id="${day.id}" data-entry-id="${entry.id}">
+            ${["Cafe", "Lanche", "Almoco", "Pre treino", "Jantar", "Belisco", "Agua", "Outro"].map((type) => `<option ${entry.type === type ? "selected" : ""}>${type}</option>`).join("")}
+          </select>
+        </label>
+        <label class="food-description">O que foi
+          <textarea data-food-field="text" data-day-id="${day.id}" data-entry-id="${entry.id}" rows="2" placeholder="Ex: iogurte com banana e aveia">${escapeHtml(entry.text)}</textarea>
+        </label>
+        <label>Foto
+          <input data-food-photo data-day-id="${day.id}" data-entry-id="${entry.id}" type="file" accept="image/*" capture="environment">
+        </label>
+      </div>
+      <div class="food-photo-row">
+        ${entry.photo ? `<img class="food-photo" src="${entry.photo}" alt="Foto do alimento">` : `<div class="photo-placeholder">Sem foto</div>`}
+        <div class="food-ai-box">
+          <div class="food-entry-actions">
+            <button class="secondary" data-ai-food="${day.id}:${entry.id}">Analisar com IA</button>
+            <button class="secondary danger" data-delete-food="${day.id}:${entry.id}">Remover</button>
+          </div>
+          <label>Analise / identificacao
+            <textarea data-food-field="aiAnalysis" data-day-id="${day.id}" data-entry-id="${entry.id}" rows="4" placeholder="A IA preenche aqui, ou voce pode escrever manualmente.">${escapeHtml(entry.aiAnalysis)}</textarea>
+          </label>
+          <span class="muted">A foto fica salva no JSON como base64 para analise depois.</span>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 function bindRecordActions() {
@@ -474,10 +515,18 @@ function bindRecordActions() {
       return;
     }
 
-    const mealField = event.target.dataset.meal;
-    if (mealField) {
+    const mealDayField = event.target.dataset.mealDay;
+    if (mealDayField) {
       const meal = ensureMealRecord(event.target.dataset.dayId);
-      meal[mealField] = event.target.value;
+      meal[mealDayField] = event.target.value;
+      saveRecords();
+      return;
+    }
+
+    const foodField = event.target.dataset.foodField;
+    if (foodField) {
+      const entry = ensureFoodEntry(event.target.dataset.dayId, event.target.dataset.entryId);
+      entry[foodField] = event.target.value;
       saveRecords();
     }
   };
@@ -485,8 +534,45 @@ function bindRecordActions() {
   document.addEventListener("input", onRecordChange);
   document.addEventListener("change", onRecordChange);
 
+  document.addEventListener("click", async (event) => {
+    const addDay = event.target.dataset.addFood;
+    if (addDay) {
+      addFoodEntry(addDay);
+      renderMealNotes();
+      return;
+    }
+
+    const deleteTarget = event.target.dataset.deleteFood;
+    if (deleteTarget) {
+      const [dayId, entryId] = deleteTarget.split(":");
+      deleteFoodEntry(dayId, entryId);
+      renderMealNotes();
+      return;
+    }
+
+    const aiTarget = event.target.dataset.aiFood;
+    if (aiTarget) {
+      const [dayId, entryId] = aiTarget.split(":");
+      await analyzeFoodEntry(dayId, entryId, event.target);
+      return;
+    }
+  });
+
+  document.addEventListener("change", async (event) => {
+    if (!event.target.matches("[data-food-photo]")) return;
+    const file = event.target.files[0];
+    if (!file) return;
+    const entry = ensureFoodEntry(event.target.dataset.dayId, event.target.dataset.entryId);
+    entry.photo = await imageFileToDataUrl(file);
+    entry.photoName = file.name;
+    entry.photoType = file.type;
+    saveRecords();
+    renderMealNotes();
+  });
+
   $("#exportJson").addEventListener("click", exportRecords);
   $("#importJson").addEventListener("change", importRecords);
+  $("#saveOpenAiKey").addEventListener("click", saveOpenAiKey);
 }
 
 function syncTrainingCheckbox(exerciseId, checked) {
@@ -510,8 +596,53 @@ function ensureExerciseRecord(dayId, exerciseId) {
 }
 
 function ensureMealRecord(dayId) {
-  if (!state.records.meals[dayId]) state.records.meals[dayId] = { actual: "", notes: "" };
+  if (!state.records.meals[dayId]) state.records.meals[dayId] = { notes: "", entries: [] };
+  if (!Array.isArray(state.records.meals[dayId].entries)) {
+    const legacyText = state.records.meals[dayId].actual || "";
+    state.records.meals[dayId].entries = legacyText ? [newFoodEntry({ text: legacyText, type: "Outro" })] : [];
+  }
+  if (typeof state.records.meals[dayId].notes !== "string") state.records.meals[dayId].notes = "";
   return state.records.meals[dayId];
+}
+
+function ensureFoodEntry(dayId, entryId) {
+  const meal = ensureMealRecord(dayId);
+  let entry = meal.entries.find((item) => item.id === entryId);
+  if (!entry) {
+    entry = newFoodEntry({ id: entryId });
+    meal.entries.push(entry);
+  }
+  return entry;
+}
+
+function newFoodEntry(overrides = {}) {
+  return {
+    id: overrides.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    time: overrides.time || currentTime(),
+    type: overrides.type || "Lanche",
+    text: overrides.text || "",
+    photo: overrides.photo || "",
+    photoName: overrides.photoName || "",
+    photoType: overrides.photoType || "",
+    aiAnalysis: overrides.aiAnalysis || "",
+    ...overrides
+  };
+}
+
+function addFoodEntry(dayId) {
+  ensureMealRecord(dayId).entries.push(newFoodEntry());
+  saveRecords();
+}
+
+function deleteFoodEntry(dayId, entryId) {
+  const meal = ensureMealRecord(dayId);
+  meal.entries = meal.entries.filter((entry) => entry.id !== entryId);
+  saveRecords();
+}
+
+function currentTime() {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 }
 
 function blankRecords() {
@@ -537,13 +668,24 @@ function loadRecords() {
 function normalizeRecords(records) {
   const base = blankRecords();
   if (!records || typeof records !== "object") return base;
-  return {
+  const normalized = {
     ...base,
     ...records,
     bio: { ...base.bio, ...(records.bio || {}) },
     exercises: records.exercises || {},
     meals: records.meals || {}
   };
+  Object.keys(normalized.meals).forEach((dayId) => {
+    const meal = normalized.meals[dayId] || {};
+    if (!Array.isArray(meal.entries)) {
+      meal.entries = meal.actual ? [newFoodEntry({ text: meal.actual, type: "Outro" })] : [];
+    }
+    meal.entries = meal.entries.map((entry) => newFoodEntry(entry));
+    meal.notes = meal.notes || "";
+    delete meal.actual;
+    normalized.meals[dayId] = meal;
+  });
+  return normalized;
 }
 
 function saveRecords() {
@@ -614,6 +756,102 @@ async function importRecords(event) {
   } finally {
     event.target.value = "";
   }
+}
+
+function hydrateAiSettings() {
+  const key = localStorage.getItem(OPENAI_KEY_STORAGE) || "";
+  $("#openAiKey").value = key;
+  updateAiKeyStatus();
+}
+
+function saveOpenAiKey() {
+  const key = $("#openAiKey").value.trim();
+  if (key) {
+    localStorage.setItem(OPENAI_KEY_STORAGE, key);
+  } else {
+    localStorage.removeItem(OPENAI_KEY_STORAGE);
+  }
+  updateAiKeyStatus();
+}
+
+function updateAiKeyStatus() {
+  const hasKey = Boolean(localStorage.getItem(OPENAI_KEY_STORAGE));
+  $("#aiKeyStatus").textContent = hasKey ? "Chave salva neste navegador." : "Sem chave: salve fotos e exporte o JSON para analise depois.";
+}
+
+async function analyzeFoodEntry(dayId, entryId, button) {
+  const key = localStorage.getItem(OPENAI_KEY_STORAGE);
+  const entry = ensureFoodEntry(dayId, entryId);
+  if (!entry.photo) {
+    alert("Adicione uma foto antes de analisar com IA.");
+    return;
+  }
+  if (!key) {
+    alert("Para analisar automaticamente, salve uma chave OpenAI neste navegador. Sem chave, a foto ainda fica no JSON para eu analisar depois.");
+    return;
+  }
+
+  const originalText = button.textContent;
+  button.textContent = "Analisando...";
+  button.disabled = true;
+  try {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${key}`
+      },
+      body: JSON.stringify({
+        model: "gpt-5-mini",
+        input: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "input_text",
+                text: "Analise esta foto de comida para um diario alimentar pessoal. Responda em portugues, curto e pratico, com: 1) o que parece ter no prato, 2) se parece uma escolha boa/ok/ruim para ganhar massa magra com saude, 3) uma sugestao simples de melhoria. Nao estime calorias exatas."
+              },
+              {
+                type: "input_image",
+                image_url: entry.photo
+              }
+            ]
+          }
+        ]
+      })
+    });
+    if (!response.ok) {
+      const details = await response.text();
+      throw new Error(details || `Erro ${response.status}`);
+    }
+    const data = await response.json();
+    entry.aiAnalysis = extractResponseText(data) || "Analise concluida, mas nao consegui ler o texto retornado.";
+    saveRecords();
+    renderMealNotes();
+  } catch (error) {
+    alert(`Nao consegui analisar agora: ${error.message}`);
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+}
+
+function extractResponseText(data) {
+  if (data.output_text) return data.output_text;
+  return (data.output || [])
+    .flatMap((item) => item.content || [])
+    .map((content) => content.text || "")
+    .filter(Boolean)
+    .join("\n");
+}
+
+function imageFileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 function escapeHtml(value) {
