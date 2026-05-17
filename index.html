@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Guia Semanal da Gaby</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="header-inner">
+        <div>
+          <p class="eyebrow">18 a 24 de maio de 2026</p>
+          <h1>Guia Semanal da Gaby</h1>
+          <p class="subtitle">Treino, cardapio, aparelhos e registro simples para acompanhar a semana.</p>
+        </div>
+        <div class="status-card">
+          <span class="status-label">Progresso</span>
+          <strong id="progressText">0%</strong>
+          <div class="progress-bar"><span id="progressBar"></span></div>
+        </div>
+      </div>
+      <nav class="tabs" aria-label="Seções">
+        <button class="tab is-active" data-section="semana">Semana</button>
+        <button class="tab" data-section="treino">Treino</button>
+        <button class="tab" data-section="cardapio">Cardapio</button>
+        <button class="tab" data-section="aparelhos">Aparelhos</button>
+        <button class="tab" data-section="registro">Registro</button>
+      </nav>
+    </header>
+
+    <main>
+      <section id="semana" class="section is-active">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Visão rápida</p>
+            <h2>Agenda da semana</h2>
+          </div>
+          <div class="day-filter" id="weekFilter"></div>
+        </div>
+        <div class="week-grid" id="weekGrid"></div>
+      </section>
+
+      <section id="treino" class="section">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Com carga sugerida</p>
+            <h2>Plano de treino</h2>
+          </div>
+          <div class="day-filter" id="trainingFilter"></div>
+        </div>
+        <div class="notice">
+          Comece com carga baixa. O peso certo deixa as ultimas repeticoes dificeis, mas ainda limpas, com 2 ou 3 repeticoes sobrando.
+        </div>
+        <div id="trainingList" class="training-list"></div>
+      </section>
+
+      <section id="cardapio" class="section">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Massa magra e energia</p>
+            <h2>Cardapio da semana</h2>
+          </div>
+          <div class="day-filter" id="mealFilter"></div>
+        </div>
+        <div class="notice">
+          Como seu peso esta baixo para sua altura, a ideia aqui e comer melhor e o suficiente, nao fazer dieta restritiva.
+        </div>
+        <div id="mealGrid" class="meal-grid"></div>
+      </section>
+
+      <section id="aparelhos" class="section">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Guia visual</p>
+            <h2>Como usar os aparelhos</h2>
+          </div>
+          <div class="tool-filter" id="equipmentFilter"></div>
+        </div>
+        <div id="equipmentGrid" class="equipment-grid"></div>
+      </section>
+
+      <section id="registro" class="section">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Para atualizar toda semana</p>
+            <h2>Registro e ajustes</h2>
+          </div>
+          <button class="secondary" id="resetChecks">Limpar marcacoes</button>
+        </div>
+        <div class="tracker-layout">
+          <article class="panel">
+            <h3>Regra de progressao</h3>
+            <p>Quando conseguir fazer todas as series e repeticoes com tecnica boa, suba pouco: 1 placa na maquina ou 1-2 kg no total dos halteres.</p>
+            <p>Se o peso cair, a fome ficar alta ou a energia despencar, adicione um lanche no dia.</p>
+          </article>
+          <article class="panel">
+            <h3>Checklist da semana</h3>
+            <div id="checkSummary"></div>
+          </article>
+          <article class="panel wide">
+            <h3>Como atualizar</h3>
+            <p>Para a proxima semana, edite os dados no arquivo <code>app.js</code>: datas, treinos e cardapio. O layout e os filtros continuam iguais.</p>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
